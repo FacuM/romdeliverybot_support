@@ -57,27 +57,32 @@ def main():
 
     print('Parsing provided device list...') # LineageOS by default, customize.
     parser = HTMLParser()
-    device_list = requests.get(device_list_server)
     build_guides = []
-    if (device_list.status_code == 200):
-        print('Success loading device list from server!')
-        device_list = device_list.content
-        pre = ''
-        # Pass the output from the request response in device_list
-        print('Parsing data...')
 
-        for char in str(device_list):
-            parser.feed(char)
-            cur = parser.get_starttag_text()
-            if ('build' in str(cur) and pre != cur):
-                build_guides.append(str(cur).split(device_list_splitter)[1].replace(device_list_part_a, '').replace(device_list_part_b, ''))
-            pre = cur
-        for i in range(len(build_guides)):
-            build_guides[i] = build_guides[i].replace('">', '')
+    # Try to get the list (only if possible).
+    try:
+        device_list = requests.get(device_list_server)
+        if (device_list.status_code == 200):
+            print('Success loading device list from server!')
+            device_list = device_list.content
+            pre = ''
+            # Pass the output from the request response in device_list
+            print('Parsing data...')
 
-        print('Done parsing!')
-    else:
-        print('Failed to parse device list!')
+            for char in str(device_list):
+                parser.feed(char)
+                cur = parser.get_starttag_text()
+                if ('build' in str(cur) and pre != cur):
+                    build_guides.append(str(cur).split(device_list_splitter)[1].replace(device_list_part_a, '').replace(device_list_part_b, ''))
+                pre = cur
+            for i in range(len(build_guides)):
+                build_guides[i] = build_guides[i].replace('">', '')
+
+            print('Done parsing!')
+        else:
+            print('Failed to parse device list!')
+    except:
+        pass
 
     bot = telebot.TeleBot(os.environ.get('API_KEY'))
 
@@ -102,12 +107,13 @@ def main():
                     bot.reply_to(message, "For a basic introduction, check this [XDA thread](https://forum.xda-developers.com/showthread.php?t=1943625).", parse_mode='Markdown')
                 elif ("android" in content):
                     device_index = -1
-                    for word in content.split():
-                        try:
-                            device_index = build_guides.index(word)
-                            break
-                        except ValueError:
-                            pass
+                    if (len(build_guides) > 0):
+                        for word in content.split():
+                            try:
+                                device_index = build_guides.index(word)
+                                break
+                            except ValueError:
+                                pass
                     if (device_index > -1):
                         bot.reply_to(message, "I found a guide for your device, get it here: [Build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown')
                     else:
