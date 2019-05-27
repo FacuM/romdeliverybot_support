@@ -250,6 +250,11 @@ def main():
 
                 except MySQLError:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
+
+                try:
+                    bot.delete_message(message.chat.id, message.message_id)
+                except:
+                    bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.')
             elif ("github" in content):
                 if (not github_enabled):
                     bot.reply_to(message, 'Sorry, but this module is disabled.')
