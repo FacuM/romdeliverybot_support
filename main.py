@@ -224,30 +224,30 @@ def main():
 
                             try:
                                 g.get_user()
+
+                                u = g.get_user()
+
+                                cur = db.cursor()
+
+                                can_authorize = True
+
+                                for auth in u.get_authorizations():
+                                    if (auth.note == bot_name):
+                                        can_authorize = False
+                                        break
+
+                                if (can_authorize):
+                                    token = u.create_authorization(note=bot_name).token
+
+                                    cur.execute("INSERT INTO " + mysql_table + " (chat_id, token) VALUES (%s, %s)", (message.from_user.id, token,))
+                                    cur.close()
+                                    db.commit() # try to commit (if possible)
+                                    bot.send_message(message.chat.id, "Welcome " + u.name + "! Please type in your search.")
+                                else:
+                                    bot.reply_to(message, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
                             except:
                                 bot.send_message(message.chat.id, "Sorry, those credentails aren't valid.")
 
-                            u = g.get_user()
-
-                            cur = db.cursor()
-
-                            can_authorize = True
-
-                            for auth in u.get_authorizations():
-                                if (auth.note == bot_name):
-                                    can_authorize = False
-                                    break
-
-                            if (can_authorize):
-                                token = u.create_authorization(note=bot_name).token
-
-                                cur.execute("INSERT INTO " + mysql_table + " (chat_id, token) VALUES (%s, %s)", (message.from_user.id, token,))
-                                cur.close()
-                                db.commit() # try to commit (if possible)
-
-                                bot.send_message(message.chat.id, "Welcome " + u.name + "! Please type in your search.")
-                            else:
-                                bot.reply_to(message, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
                 except MySQLError:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
             elif ("github" in content):
