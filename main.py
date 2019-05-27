@@ -245,7 +245,7 @@ def main():
                                 bot.send_message(message.chat.id, "Welcome " + u.name + "! Please type in your search.")
                             else:
                                 bot.reply_to(message, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
-                except MySQLdb._exceptions.OperationalError:
+                except _mysql_exceptions.OperationalError:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
             elif ("github" in content):
                 if (not github_enabled):
@@ -346,7 +346,7 @@ def main():
                                         # Now, push the queued messages.
                                         for msg in out_messages:
                                             bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-                        except MySQLdb._exceptions.OperationalError:
+                        except _mysql_exceptions.OperationalError:
                             bot.reply_to(message, critical_error, parse_mode='Markdown')
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
                 cur = db.cursor()
@@ -386,7 +386,7 @@ def main():
                             bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).')
                     else:
                         bot.reply_to(message, 'I don\'t know you.')
-                except MySQLdb._exceptions.OperationalError:
+                except _mysql_exceptions.OperationalError:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
 
             # Conversational basics (because who needs AIs).
