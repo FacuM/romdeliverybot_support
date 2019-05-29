@@ -39,6 +39,9 @@ try:
     print('Importing "PyMySQL"...')
     import pymysql
     print('Successfully imported "PyMySQL"!')
+    print('Impoting "duckduckgo"...')
+    import duckduckgo
+    print('Successfully imported "duckduckgo"!')
 except ImportError:
     print('Failed to import required modules, quitting...')
     exit(1)
@@ -264,7 +267,7 @@ def main():
                     bot.delete_message(message.chat.id, message.message_id)
                 except:
                     bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.')
-            elif ("github" in content):
+            elif ( ("github" in content) and ( not( 'duck' in content) or ('duckduckgo' in content) ) ):
                 if (not github_enabled):
                     bot.reply_to(message, 'Sorry, but this module is disabled.')
                 else:
@@ -274,7 +277,7 @@ def main():
                                 bot.reply_to(message, "Oops... that's not implemented.")
                             else:
                                 # If after wiping out the request, the query is empty, report it and quit.
-                                query = content.replace('github', '').replace('search', '').replace(' ', '')
+                                query = content.replace('github', '', 1).replace('search', '').replace(' ', '')
                                 if (len(query) < 1):
                                     bot.reply_to(message, "Eh... I guess you should search something.")
                                 else:
@@ -366,6 +369,55 @@ def main():
                         except pymysql.err.Error:
                             bot.reply_to(message, critical_error, parse_mode='Markdown')
                             connect_mysql(retrying=True)
+            elif ( ( ('duckduckgo' in content) or ('duck' in content) ) and ('search' in content) ):
+                # If after wiping out the request, the query is empty, report it and quit.
+                query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('search', '').replace(' ', '')
+                if (len(query) < 1):
+                    bot.reply_to(message, "Eh... I guess you should search something.")
+                else:
+                    out_messages = []
+
+                    loading_message = bot.send_message(message.chat.id, 'Please wait...')
+                    bot.send_chat_action(message.chat.id, 'typing')
+
+                    request = duckduckgo.query(query, safesearch=True, html=False)
+                    cnt = 1
+
+                    try:
+                        out = ''
+                        # Append the main result.
+                        for result in request.results:
+                            out += '🔗 Website: [' + result.text + '](' + result.url + ')\n'
+                            out += 'ℹ Description: ' + request.abstract.text + '\n'
+                            out += '\n'
+                            out += 'Source: [' + request.abstract.source + '](' + request.abstract.url + ')'
+                            out_messages.append(out)
+                            out = ''
+                            cnt += 1
+
+                        # Append related results.
+                        out_messages.append('🔎 Related results...\n')
+                        for related in request.related:
+                            if (cnt < search_limit):
+                                out += '\n'
+                                out += '🔗 Website: [' + related.text + '](' + related.url + ')\n'
+                                out_messages.append(out)
+                            else:
+                                break
+                            out = ''
+                            cnt += 1
+
+                        if (cnt < 1):
+                            out_messages.append('Oops... no results.')
+                        else:
+                            out_messages.append('And... that\'s it! Anything else?')
+
+                    except:
+                        bot.reply_to(message, 'Sorry, something went wrong.')
+
+                    # Now, push the queued messages.
+                    for msg in out_messages:
+                        bot.send_message(message.chat.id, msg, parse_mode='Markdown')
 
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
                 try:
