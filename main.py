@@ -53,19 +53,31 @@ def clear(n):
 def warn_sleep():
     time.sleep(1.5)
 
-def intro():
-    clear(50)
-    print('Hello! My name is ' + bot_name + ' and I\'m not very smart.')
-    print('')
-    print('I\'m written in Python but I don\'t rely on any AI.')
-    print('Please be kind with me. :)')
+def print_important(msg):
+    def print_separator(char_amount):
+        for i in range(char_amount):
+            print('=', end='')
+        print('')
+
+    max_len = 0
+    for line in msg.splitlines():
+        if (len(line) > max_len):
+            max_len = len(line)
+
+    clear(5)
+    print_separator(max_len)
+    print(msg)
+    print_separator(max_len)
     clear(5)
 
 def main():
     github_enabled = True
 
-    intro()
-    print('Starting...')
+    print_important('Hello! My name is ' + bot_name + ' and I\'m not very smart.\n' +
+                    '\n' +
+                    'I\'m written in Python but I don\'t rely on any AI.\n' +
+                    'Please be kind with me. :)\n' +
+                    'Starting...')
 
     def get_environment(value, message, required=False, db=False):
         ret = os.environ.get(value, '')
@@ -168,11 +180,13 @@ def main():
     except:
         pass
 
+    print_important('Startup complete!')
+
     bot = telebot.TeleBot(api_key)
     bot_user_id = bot.get_me().id
 
     logger = telebot.logger
-    telebot.logger.setLevel(logging.DEBUG)
+    telebot.logger.setLevel(logging.WARN)
 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
@@ -493,6 +507,7 @@ def main():
             else:
                 bot.reply_to(message, general_error, parse_mode='Markdown')
 
+    print('The bot is now polling...')
     bot.polling()
 
 if __name__ == '__main__':
