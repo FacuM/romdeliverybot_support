@@ -277,7 +277,7 @@ def main():
                                 bot.reply_to(message, "Oops... that's not implemented.")
                             else:
                                 # If after wiping out the request, the query is empty, report it and quit.
-                                query = content.replace('github', '', 1).replace('search', '').replace(' ', '')
+                                query = content.replace('github', '', 1).replace('hey', '').split("search")[1]
                                 if (len(query) < 1):
                                     bot.reply_to(message, "Eh... I guess you should search something.")
                                 else:
@@ -298,8 +298,6 @@ def main():
                                         bot.send_chat_action(message.chat.id, 'typing')
 
                                         g = Github(token)
-
-                                        query = content.split("search")[1].replace("github", "")
 
                                         cnt = 0
                                         try:
@@ -371,7 +369,9 @@ def main():
                             connect_mysql(retrying=True)
             elif ( ( ('duckduckgo' in content) or ('duck' in content) ) and ('search' in content) ):
                 # If after wiping out the request, the query is empty, report it and quit.
-                query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('search', '').replace(' ', '')
+                query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('hey', '').split("search")[1]
+                print(query)
+
                 if (len(query) < 1):
                     bot.reply_to(message, "Eh... I guess you should search something.")
                 else:
@@ -381,7 +381,7 @@ def main():
                     bot.send_chat_action(message.chat.id, 'typing')
 
                     request = duckduckgo.query(query, safesearch=True, html=False)
-                    cnt = 1
+                    cnt = 0
 
                     try:
                         out = ''
