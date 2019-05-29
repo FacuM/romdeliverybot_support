@@ -1,3 +1,3 @@
 pyTelegramBotAPI
 PyGithub
-mysqlclient
+PyMySQL

@@ -36,12 +36,9 @@ try:
     print('Importing "time"...')
     import time
     print('Successfully imported "time"!')
-    print('Importing "MySQLdb"...')
-    import MySQLdb
-    print('Successfully imported "MySQLdb"!')
-    print('Importing "MySQLError"...')
-    from _mysql_exceptions import MySQLError
-    print('Successfully imported "MySQLError"!')
+    print('Importing "PyMySQL"...')
+    import pymysql
+    print('Successfully imported "PyMySQL"!')
 except ImportError:
     print('Failed to import required modules, quitting...')
     exit(1)
@@ -103,27 +100,44 @@ def main():
         github_enabled = False
         warn_sleep()
 
-    try:
-        # Test DB connection
-        print('Connecting to the MySQL server...')
-        db = MySQLdb.connect(host=mysql_hostname, user=mysql_username, passwd=mysql_password, db=mysql_dbname)
-        print('Success connecting to the MySQL server!')
-    except:
-        print('Failed to connect to the MySQL server, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    '''
+        Declare the DB object as global, as we're gonna write to it at least
+        once.
 
-    try:
-        # Try to create the table (if not existing).
-        print('Creating table "' + mysql_table + '"...')
-        cur = db.cursor()
-        cur.execute('CREATE TABLE IF NOT EXISTS `robbie_tokens` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
-        # Set chat_id as primary key
-        cur.execute('ALTER TABLE robbie_tokens ADD PRIMARY KEY (chat_id)')
-        cur.close()
-        db.commit()
-    except:
-        pass
+        TODO: There must be a better solution, improve the underlying code.
+    '''
+    db = None
+    def connect_mysql(retrying=False):
+        try:
+            nonlocal db
+            if (retrying):
+                # Retry DB connection.
+                print('Retrying to connect to the MySQL server...')
+                db.close()
+            else:
+                # Test DB connection.
+                print('Connecting to the MySQL server...')
+            db = pymysql.connect(host=mysql_hostname, user=mysql_username, password=mysql_password, db=mysql_dbname)
+            print('Success connecting to the MySQL server!')
+        except:
+            print('Failed to connect to the MySQL server, all GitHub-related modules will be disabled.')
+            github_enabled = False
+            warn_sleep()
+    connect_mysql()
+
+    def populate_database():
+        try:
+            # Try to create the table (if not existing).
+            print('Creating table "' + mysql_table + '"...')
+            cur = db.cursor()
+            cur.execute('CREATE TABLE IF NOT EXISTS `robbie_tokens` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
+            # Set chat_id as primary key
+            cur.execute('ALTER TABLE robbie_tokens ADD PRIMARY KEY (chat_id)')
+            cur.close()
+            db.commit()
+        except:
+            pass
+    populate_database()
 
     print('Parsing provided device list...') # LineageOS by default, customize.
     parser = HTMLParser()
@@ -248,8 +262,9 @@ def main():
                             except:
                                 bot.send_message(message.chat.id, "Sorry, those credentails aren't valid.")
 
-                except MySQLError:
+                except pymysql.err.Error:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    connect_mysql(retrying=True)
 
                 try:
                     bot.delete_message(message.chat.id, message.message_id)
@@ -354,25 +369,31 @@ def main():
                                         # Now, push the queued messages.
                                         for msg in out_messages:
                                             bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-                        except MySQLError:
+                        except pymysql.err.Error:
                             bot.reply_to(message, critical_error, parse_mode='Markdown')
+                            connect_mysql(retrying=True)
+
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
-                cur = db.cursor()
-                cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
-                token_count = cur.fetchone()[0]
-
-                cur.close()
-
-                if (token_count > 0):
+                try:
                     cur = db.cursor()
-                    cur.execute('SELECT token FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
-                    token = cur.fetchone()[0]
+                    cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                    token_count = cur.fetchone()[0]
 
                     cur.close()
 
-                    bot.reply_to(message, 'Your token is `' + token + '`.', parse_mode='Markdown')
-                else:
-                    bot.reply_to(message, 'I don\'t know who you are.')
+                    if (token_count > 0):
+                        cur = db.cursor()
+                        cur.execute('SELECT token FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                        token = cur.fetchone()[0]
+
+                        cur.close()
+
+                        bot.reply_to(message, 'Your token is `' + token + '`.', parse_mode='Markdown')
+                    else:
+                        bot.reply_to(message, 'I don\'t know who you are.')
+                except pymysql.err.Error:
+                    bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    connect_mysql(retrying=True)
 
             elif ( ('delete' in content) and ( ('token' in content) or ('account' in content) ) ):
                 try:
@@ -394,8 +415,9 @@ def main():
                             bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).')
                     else:
                         bot.reply_to(message, 'I don\'t know you.')
-                except MySQLError:
+                except pymysql.err.Error:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    connect_mysql(retrying=True)
 
             # Conversational basics (because who needs AIs).
             elif ( ('no' in content) or ('thank' in content) or ('thx' in content) or ('ty' in content) or ('bye' in content) or ('cya' in content) or ('c ya' in content) or ( ('see' in content) and ('you' in content) ) ):
