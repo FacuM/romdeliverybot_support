@@ -1,0 +1,2 @@
+run:
+  worker: bash start.sh
