@@ -51,7 +51,7 @@ def clear(n):
         print('\n')
 
 def warn_sleep():
-    time.sleep(1.5);
+    time.sleep(1.5)
 
 def intro():
     clear(50)
@@ -181,7 +181,7 @@ def main():
 
     @bot.message_handler(func=lambda i:True)
     def everything(message):
-        content = str(message.text).lower()
+        content = str(message.text).lower().replace('?', '').replace('¿', '')
         group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name.lower() in content) or (message.reply_to_message.from_user.id == bot_user_id) ) )
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
@@ -190,14 +190,14 @@ def main():
                 elif ("android" in content):
                     device_index = -1
                     if (len(build_guides) > 0):
-                        for word in content.split():
+                        for word in content.replace('build', '').replace('android', '').split():
                             try:
                                 device_index = build_guides.index(word)
                                 break
                             except ValueError:
                                 pass
                     if (device_index > -1):
-                        bot.reply_to(message, "I found a guide for your device, get it here: [Build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown')
+                        bot.reply_to(message, "I found a guide for your device, get it here: [build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown')
                     else:
                         bot.reply_to(message, "A great guide to follow about this topic is the one from LineageOS, you can [check it out here](" + device_list_server + ").\n\nYou can also ask me about your specific device's build guide!", parse_mode='Markdown')
                 else:
