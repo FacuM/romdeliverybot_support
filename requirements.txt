@@ -1,4 +1,4 @@
 pyTelegramBotAPI
 PyGithub
 PyMySQL
-duckduckgo2
+-e git://github.com/FacuM/python-duckduckgo.git
