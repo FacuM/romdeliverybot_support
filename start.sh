@@ -7,8 +7,8 @@ then
   git clone "$REMOTE_HOST"'/'"$REMOTE_PATH"'/'"$REMOTE_REPO" "$HOME"'/'"$REMOTE_REPO"
   PRE_PWD="$PWD"
   cd "$HOME"'/'"$REMOTE_REPO"
-  python setup.py install --user
+  python3 setup.py install --user
   cd "$PRE_PWD"
 fi
-python -m pip install -r requirements.txt --user
-python main.py
+python3 -m pip install -r requirements.txt --user
+python3 main.py
