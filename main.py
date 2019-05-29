@@ -411,6 +411,13 @@ def main():
                         else:
                             out_messages.append('Oops... no results.')
 
+                        # If we're done loading (or failing), delete the loading message.
+                        try:
+                            # Delete it, only if we can. It's not a bad thing though.
+                            bot.delete_message(loading_message.chat.id, loading_message.message_id)
+                        except:
+                            pass
+
                     except:
                         bot.reply_to(message, 'Sorry, something went wrong.')
 
