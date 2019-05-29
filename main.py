@@ -124,14 +124,17 @@ def main():
 
     def populate_database():
         try:
-            # Try to create the table (if not existing).
-            print('Creating table "' + mysql_table + '"...')
             cur = db.cursor()
-            cur.execute('CREATE TABLE IF NOT EXISTS `robbie_tokens` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
-            # Set chat_id as primary key
-            cur.execute('ALTER TABLE robbie_tokens ADD PRIMARY KEY (chat_id)')
-            cur.close()
-            db.commit()
+            cur.execute('SHOW TABLES')
+            if (not (mysql_table in cur.fetchall()[0])):
+                # Try to create the table (if not existing).
+                print('Creating table "' + mysql_table + '"...')
+                cur = db.cursor()
+                cur.execute('CREATE TABLE IF NOT EXISTS `robbie_tokens` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
+                # Set chat_id as primary key
+                cur.execute('ALTER TABLE robbie_tokens ADD PRIMARY KEY (chat_id)')
+                cur.close()
+                db.commit()
         except:
             pass
     populate_database()
