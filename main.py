@@ -166,6 +166,7 @@ def main():
         pass
 
     bot = telebot.TeleBot(api_key)
+    bot_user_id = bot.get_me().id
 
     logger = telebot.logger
     telebot.logger.setLevel(logging.DEBUG)
@@ -181,7 +182,7 @@ def main():
     @bot.message_handler(func=lambda i:True)
     def everything(message):
         content = str(message.text).lower()
-        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and (bot_name.lower() in content) );
+        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name.lower() in content) or (message.reply_to_message.from_user.id == bot_user_id) ) )
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
                 if ("twrp" in content):
