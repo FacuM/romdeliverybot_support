@@ -381,7 +381,7 @@ def main():
                     bot.send_chat_action(message.chat.id, 'typing')
 
                     request = duckduckgo.query(query, safesearch=True, html=False)
-                    cnt = 0
+                    has_results = False
 
                     try:
                         out = ''
@@ -393,24 +393,23 @@ def main():
                             out += 'Source: [' + request.abstract.source + '](' + request.abstract.url + ')'
                             out_messages.append(out)
                             out = ''
-                            cnt += 1
+                            has_results = True
 
-                        # Append related results.
-                        out_messages.append('🔎 Related results...\n')
-                        for related in request.related:
-                            if (cnt < search_limit):
-                                out += '\n'
-                                out += '🔗 Website: [' + related.text + '](' + related.url + ')\n'
-                                out_messages.append(out)
-                            else:
-                                break
-                            out = ''
-                            cnt += 1
+                        if (has_results):
+                            # Append related results.
+                            out_messages.append('🔎 Related results...\n')
+                            for related in request.related:
+                                if (cnt < search_limit):
+                                    out += '\n'
+                                    out += '🔗 Website: [' + related.text + '](' + related.url + ')\n'
+                                    out_messages.append(out)
+                                else:
+                                    break
+                                out = ''
 
-                        if (cnt < 1):
-                            out_messages.append('Oops... no results.')
-                        else:
                             out_messages.append('And... that\'s it! Anything else?')
+                        else:
+                            out_messages.append('Oops... no results.')
 
                     except:
                         bot.reply_to(message, 'Sorry, something went wrong.')
