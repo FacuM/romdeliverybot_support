@@ -64,41 +64,35 @@ def main():
     intro()
     print('Starting...')
 
+    def get_environment(value, message, required=False, db=False):
+        ret = os.environ.get(value, '')
+        if (not ret):
+            if (required):
+                print ('Missing ' + message + ', please set the environment variable ' + value)
+                exit(1)
+            else:
+                if (db):
+                    print('Missing ' + message + ', all GitHub-related modules will be disabled.')
+                    nonlocal github_enabled
+                    github_enabled = False
+                else:
+                    print('Missing ' + message + ', this could cause some issues.')
+                warn_sleep()
+        else:
+            return ret
+
     # Try to set up the API_KEY, if it's not present, crash.
-    api_key = os.environ.get('API_KEY', '')
-    if (not api_key):
-        print('Missing API key, please set the environment variable API_KEY.')
-        exit(1)
+    api_key = get_environment(value='API_KEY', message='API key', required=True)
 
-    mysql_hostname = os.environ.get('MYSQL_HOSTNAME', '')
-    if (not mysql_hostname):
-        print('Missing MySQL server hostname, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    mysql_hostname = get_environment(value='MYSQL_HOSTNAME', message='MySQL server hostname', db=True)
 
-    mysql_username = os.environ.get('MYSQL_USERNAME', '')
-    if (not mysql_username):
-        print('Missing MySQL server username, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    mysql_username = get_environment(value='MYSQL_USERNAME', message='MySQL server username', db=True)
 
-    mysql_password = os.environ.get('MYSQL_PASSWORD', '')
-    if (not mysql_password):
-        print('Missing MySQL server password, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    mysql_password = get_environment(value='MYSQL_PASSWORD', message='MySQL server password', db=True)
 
-    mysql_dbname = os.environ.get('MYSQL_DBNAME', '')
-    if (not mysql_dbname):
-        print('Missing MySQL database name, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    mysql_dbname = get_environment(value='MYSQL_DBNAME', message='MySQL database name', db=True)
 
-    mysql_table = os.environ.get('MYSQL_TABLE', '')
-    if (not mysql_table):
-        print('Missing MySQL table name, all GitHub-related modules will be disabled.')
-        github_enabled = False
-        warn_sleep()
+    mysql_table = get_environment(value='MYSQL_TABLE', message='MySQL table name', db=True)
 
     '''
         Declare the DB object as global, as we're gonna write to it at least
