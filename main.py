@@ -39,9 +39,15 @@ try:
     print('Importing "PyMySQL"...')
     import pymysql
     print('Successfully imported "PyMySQL"!')
-    print('Impoting "duckduckgo"...')
+    print('Importing "duckduckgo"...')
     import duckduckgo
     print('Successfully imported "duckduckgo"!')
+    print('Importing "mistune"...')
+    import mistune
+    print('Successfully imported "mistune"!')
+    print('Importing "re" (regular expressions)...')
+    import re
+    print('Successfully imported "re"!')
 except ImportError:
     print('Failed to import required modules, quitting...')
     exit(1)
@@ -69,6 +75,13 @@ def print_important(msg):
     print(msg)
     print_separator(max_len)
     clear(5)
+
+def get_plaintext(html):
+    processed = html.replace('<br>', '\n')
+    ret = ''
+    for line in processed.splitlines():
+        ret += re.sub('</?[^>]+>', '', line) + '\n'
+    return ret
 
 def main():
     github_enabled = True
@@ -336,30 +349,34 @@ def main():
                                                     out += '⭐ Stars: ' + str(full_repo.stargazers_count) + '\n'
                                                     out += '👀 Watchers: ' + str(full_repo.watchers_count) + '\n'
                                                     out += '\n'
-                                                    out += repo.description + '\n'
-
-                                                    ###############################
-                                                    # TODO: Parse it as markdown  #
-                                                    # prior appending.            #
-                                                    ###############################
+                                                    out += str(repo.description) + '\n'
 
                                                     # Let's try with each known README type.
-                                                    #readme = ''
-                                                    #for readme_type in [ '.markdown' , '.md', '' ]:
-                                                    #    try:
-                                                    #        readme = str(base64.b64decode(full_repo.get_contents("README" + readme_type).content), 'utf-8')
+                                                    global readme
+                                                    readme = ''
+                                                    for readme_type in [ '.markdown' , '.md', '' ]:
+                                                        try:
+                                                            readme = str(base64.b64decode(full_repo.get_contents("README" + readme_type).content), 'utf-8')
+                                                            print()
 
-                                                    #        # If found, stop searching.
-                                                    #        break
-                                                    #    except:
-                                                    #        pass
+                                                            # If found, stop searching.
+                                                            break
+                                                        except:
+                                                            pass
+
+                                                    markdown = mistune.Markdown()
 
                                                     # If anything is found, lets try to limit it (only if necessary).
-                                                    #if (len(readme) > 0):
-                                                    #    if (len(readme) > readme_char_limit):
-                                                    #        readme = readme[:readme_char_limit] + '**\[...]**'
+                                                    if (len(readme) > 0):
 
-                                                    #    out += readme # (len(readme) > 0)
+                                                        readme = markdown(readme)
+
+                                                        readme = get_plaintext(readme)
+
+                                                        if (len(readme) > readme_char_limit):
+                                                            readme = readme[:readme_char_limit] + '**\[...]**'
+
+                                                        out += '\n' + readme # (len(readme) > 0)
 
                                                     out_messages.append(out)
                                                     cnt += 1
@@ -370,7 +387,7 @@ def main():
                                             else:
                                                 out_messages.append('And... that\'s it! Anything else?')
                                         except:
-                                            out_messages.append("Failed to process query.")
+                                            out_messages.append("Sorry, I couldn\'t process your query.")
 
                                         # If we're done loading (or failing), delete the loading message.
                                         try:
