@@ -11,7 +11,8 @@ The usage is pretty simple: feed me up with a bunch of content off the if-else s
 Oh, by the way, don't forget to define your Telegram API key! On whatever system you're in, define a shell/environment variable called `API_KEY` and put in there your key.
 
 #### TODO
-- Minimize the user activity on internals.
-- Improve performance (implement _AsyncTeleBot_).
-- Fix a bunch of possible security issues.
-- Use an actual database and implement OAuth token authentication.
+- [x] ~~Minimize the user activity on internals.~~
+- [ ] Improve performance (implement _AsyncTeleBot_).
+- [x] ~~Fix a bunch of possible security issues.~~
+- [x] ~~Use an actual database and implement OAuth token authentication.~~ (kept username/password auth)
+- [ ] Implement fully cloud-managed OAuth authentication.
