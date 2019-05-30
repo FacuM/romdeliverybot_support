@@ -10,6 +10,7 @@ repo_url = 'https://github.com/FacuM/romdeliverybot_support'
 bot_name = 'Robbie'
 general_error = 'Sorry, I can\'t help you with that right now.\n\nHowever, if you find the solution by yourself, it\'d be great if you could create a pull request in my [source code](https://github.com/FacuM/romdeliverybot_support).'
 critical_error = 'Sorry, there was a critical problem and my brain stopped working (so my dev\'s), you might want to [create an issue](' + repo_url + '/issues/new).'
+bot_name_lower = bot_name.lower()
 
 try:
     print('Importing "os"...')
@@ -120,7 +121,7 @@ def main():
 
     mysql_dbname = get_environment(value='MYSQL_DBNAME', message='MySQL database name', db=True)
 
-    mysql_table = get_environment(value='MYSQL_TABLE', message='MySQL table name', db=True)
+    mysql_table_tokens = bot_name_lower + '_tokens'
 
     '''
         Declare the DB object as global, as we're gonna write to it at least
@@ -151,13 +152,14 @@ def main():
         try:
             cur = db.cursor()
             cur.execute('SHOW TABLES')
-            if (not (mysql_table in cur.fetchall()[0])):
+            tables = cur.fetchall()[0]
+            if (not (mysql_table_tokens in tables)):
                 # Try to create the table (if not existing).
-                print('Creating table "' + mysql_table + '"...')
+                print('Creating table "' + mysql_table_tokens + '"...')
                 cur = db.cursor()
-                cur.execute('CREATE TABLE IF NOT EXISTS `robbie_tokens` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
+                cur.execute('CREATE TABLE IF NOT EXISTS `' + mysql_table_tokens + '` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
                 # Set chat_id as primary key
-                cur.execute('ALTER TABLE robbie_tokens ADD PRIMARY KEY (chat_id)')
+                cur.execute('ALTER TABLE ' + mysql_table_tokens + ' ADD PRIMARY KEY (chat_id)')
                 cur.close()
                 db.commit()
         except:
@@ -216,7 +218,7 @@ def main():
             message_replied = message.reply_to_message.from_user.id
         except:
             message_replied = None
-        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name.lower() in content) or (message_replied == bot_user_id) ) )
+        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name_lower in content) or (message_replied == bot_user_id) ) )
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
                 if ("twrp" in content):
@@ -247,7 +249,7 @@ def main():
 
                 try:
                     cur = db.cursor()
-                    cur.execute("SELECT COUNT(chat_id) FROM " + mysql_table + ' WHERE chat_id = %s', (message_snapshot.from_user.id,)) # make a tuple and escape
+                    cur.execute("SELECT COUNT(chat_id) FROM " + mysql_table_tokens + ' WHERE chat_id = %s', (message_snapshot.from_user.id,)) # make a tuple and escape
                     token_count = cur.fetchone()[0]
 
                     cur.close()
@@ -292,7 +294,7 @@ def main():
                                 if (can_authorize):
                                     token = u.create_authorization(note=bot_name).token
 
-                                    cur.execute("INSERT INTO " + mysql_table + " (chat_id, token) VALUES (%s, %s)", (message_snapshot.from_user.id, token,))
+                                    cur.execute("INSERT INTO " + mysql_table_tokens + " (chat_id, token) VALUES (%s, %s)", (message_snapshot.from_user.id, token,))
                                     cur.close()
                                     db.commit() # try to commit (if possible)
                                     bot.send_message(message_snapshot.chat.id, "Welcome " + u.name + "! Please type in your search.")
@@ -319,7 +321,7 @@ def main():
                                     bot.reply_to(message, "Eh... I guess you should search something.")
                                 else:
                                     cur = db.cursor()
-                                    cur.execute("SELECT (SELECT COUNT(chat_id) FROM " + mysql_table + ' WHERE chat_id = %s), (SELECT token FROM ' + mysql_table + ' WHERE chat_id = %s)', (message.from_user.id, message.from_user.id,))
+                                    cur.execute("SELECT (SELECT COUNT(chat_id) FROM " + mysql_table_tokens + ' WHERE chat_id = %s), (SELECT token FROM ' + mysql_table_tokens + ' WHERE chat_id = %s)', (message.from_user.id, message.from_user.id,))
                                     result = cur.fetchone()
                                     token_count = result[0]
                                     token = result[1]
@@ -363,7 +365,6 @@ def main():
                                                     for readme_type in [ '.markdown' , '.md', '' ]:
                                                         try:
                                                             readme = str(base64.b64decode(full_repo.get_contents("README" + readme_type).content), 'utf-8')
-                                                            print()
 
                                                             # If found, stop searching.
                                                             break
@@ -411,7 +412,6 @@ def main():
             elif ( ( ('duckduckgo' in content) or ('duck' in content) ) and ('search' in content) ):
                 # If after wiping out the request, the query is empty, report it and quit.
                 query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('hey', '').split("search")[1]
-                print(query)
 
                 if (len(query) < 1):
                     bot.reply_to(message, "Eh... I guess you should search something.")
@@ -469,14 +469,14 @@ def main():
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
                 try:
                     cur = db.cursor()
-                    cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                    cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
                     token_count = cur.fetchone()[0]
 
                     cur.close()
 
                     if (token_count > 0):
                         cur = db.cursor()
-                        cur.execute('SELECT token FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                        cur.execute('SELECT token FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
                         token = cur.fetchone()[0]
 
                         cur.close()
@@ -491,7 +491,7 @@ def main():
             elif ( ('delete' in content) and ( ('token' in content) or ('account' in content) ) ):
                 try:
                     cur = db.cursor()
-                    cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                    cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
                     token_count = cur.fetchone()[0]
 
                     cur.close()
@@ -499,7 +499,7 @@ def main():
                     if (token_count > 0):
                         try:
                             cur = db.cursor()
-                            cur.execute('DELETE FROM ' + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,))
+                            cur.execute('DELETE FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
                             cur.close()
                             db.commit()
 
@@ -511,6 +511,33 @@ def main():
                 except pymysql.err.Error:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
                     connect_mysql(retrying=True)
+
+                '''
+                ######################
+                TODO: Implement this.
+                ######################
+
+                elif ('purge' in content):
+                    # If after wiping out the request, the query is empty, report it and quit.
+                    query = content.replace('purge', '', 1).replace('hey', '').replace(' ', '').split("purge")[0]
+                    print(query)
+
+                    if (len(query) < 1):
+                        bot.reply_to(message, "Eh... I guess you should provide an amount.")
+                    else:
+                        try:
+                            max_delete = int(query)
+                            cnt = 0
+                            for update in bot.updates:
+                                if (cnt < max_delete):
+                                    bot.delete_message(message.chat.id, update.id)
+                                    cnt += 1
+                                else:
+                                    break
+                            bot.send_message(message.chat.id, 'Alright, it\'s done! Anything else?')
+                        except:
+                            bot.send_message(message.chat.id, 'That\'s not a number.')
+                '''
 
             # Conversational basics (because who needs AIs).
             elif ( ('no' in content) or ('thank' in content) or ('thx' in content) or ('ty' in content) or ('bye' in content) or ('cya' in content) or ('c ya' in content) or ( ('see' in content) and ('you' in content) ) ):
@@ -528,7 +555,10 @@ def main():
                 bot.reply_to(message, 'My name is ' + bot_name + '.')
             # => Fallback: I don't know what to do!
             else:
-                bot.reply_to(message, general_error, parse_mode='Markdown')
+                if (group_call):
+                    bot.reply_to(message, 'I don\'t know what to do.')
+                else:
+                    bot.reply_to(message, general_error, parse_mode='Markdown')
 
     print('The bot is now polling...')
     bot.polling()
