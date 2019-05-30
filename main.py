@@ -212,7 +212,11 @@ def main():
     @bot.message_handler(func=lambda i:True)
     def everything(message):
         content = str(message.text).lower().replace('?', '').replace('¿', '')
-        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name.lower() in content) or (message.reply_to_message.from_user.id == bot_user_id) ) )
+        try:
+            message_replied = message.reply_to_message.from_user.id
+        except:
+            message_replied = None
+        group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name.lower() in content) or (message_replied == bot_user_id) ) )
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
                 if ("twrp" in content):
