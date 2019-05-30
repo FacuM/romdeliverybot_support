@@ -238,29 +238,36 @@ def main():
                     bot.reply_to(message, general_error, parse_mode='Markdown')
 
             elif ( ('my' in content) and ('github' in content) and ('username is' in content) and ('password is' in content) ):
+                message_snapshot = message
+
+                try:
+                    bot.delete_message(message.chat.id, message.message_id)
+                except:
+                    bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.')
+
                 try:
                     cur = db.cursor()
-                    cur.execute("SELECT COUNT(chat_id) FROM " + mysql_table + ' WHERE chat_id = %s', (message.from_user.id,)) # make a tuple and escape
+                    cur.execute("SELECT COUNT(chat_id) FROM " + mysql_table + ' WHERE chat_id = %s', (message_snapshot.from_user.id,)) # make a tuple and escape
                     token_count = cur.fetchone()[0]
 
                     cur.close()
                     db.commit() # try to commit (if possible)
 
                     if (token_count > 0):
-                        bot.reply_to(message, "I know your token, please type in your search or revoke it.")
+                        bot.send_message(message_snapshot.chat.id, "I know your token, please type in your search or revoke it.")
                     else:
                         if (group_call):
-                            bot.reply_to(message, 'Sorry, but you\'ll need to send me a private message to use that feature, it wouldn\'t be safe here.')
+                            bot.send_message(message_snapshot.chat.id, 'Sorry, but you\'ll need to send me a private message to use that feature, it wouldn\'t be safe here.')
                         else:
-                            bot.reply_to(message, "Fine, let me see if it works...")
+                            bot.send_message(message_snapshot.chat.id, "Fine, let me see if it works...")
 
                             try:
                                 # Parse username.
-                                username = message.text[content.index("username is"):]
+                                username = message_snapshot.text[content.index("username is"):]
                                 username = username.split()[2]
 
                                 # Parse password.
-                                password = message.text[content.index("pas"):]
+                                password = message_snapshot.text[content.index("pas"):]
                                 password = password[password.index("is"):]
                                 password = password.split()[1]
                             except:
@@ -285,23 +292,18 @@ def main():
                                 if (can_authorize):
                                     token = u.create_authorization(note=bot_name).token
 
-                                    cur.execute("INSERT INTO " + mysql_table + " (chat_id, token) VALUES (%s, %s)", (message.from_user.id, token,))
+                                    cur.execute("INSERT INTO " + mysql_table + " (chat_id, token) VALUES (%s, %s)", (message_snapshot.from_user.id, token,))
                                     cur.close()
                                     db.commit() # try to commit (if possible)
-                                    bot.send_message(message.chat.id, "Welcome " + u.name + "! Please type in your search.")
+                                    bot.send_message(message_snapshot.chat.id, "Welcome " + u.name + "! Please type in your search.")
                                 else:
-                                    bot.reply_to(message, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
+                                    bot.send_message(message_snapshot.chat.id, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
                             except:
-                                bot.send_message(message.chat.id, "Sorry, those credentails aren't valid.")
+                                bot.send_message(message_snapshot.chat.id, "Sorry, those credentails aren't valid.")
 
                 except pymysql.err.Error:
                     bot.reply_to(message, critical_error, parse_mode='Markdown')
                     connect_mysql(retrying=True)
-
-                try:
-                    bot.delete_message(message.chat.id, message.message_id)
-                except:
-                    bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.')
             elif ( ("github" in content) and ( not( 'duck' in content) or ('duckduckgo' in content) ) ):
                 if (not github_enabled):
                     bot.reply_to(message, 'Sorry, but this module is disabled.')
