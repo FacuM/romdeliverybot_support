@@ -10,6 +10,31 @@ The usage is pretty simple: feed me up with a bunch of content off the if-else s
 
 Oh, by the way, don't forget to define your Telegram API key! On whatever system you're in, define a shell/environment variable called `API_KEY` and put in there your key.
 
+#### Features
+- Basic social interactions.
+- Crashless exception-handled backend.
+- GitHub repository searching and listing, with summary of README contents appending.
+- Support for account token reporting and deletion.
+- High performance MySQL/MariaDB-backed message tracking.
+- Support for Android build guides lookup in LineageOS' server.
+- DuckDuckGo searches.
+
+#### Modules
+Some of the features of Robbie depend on the availability of several values, objects and external content providers (and receivers). Any module requiring a special treatment will be specified below, alongside the proper instructions to follow in order to get them working.
+
+- GitHub search
+
+  This module requires the following environment variables to be set:
+
+  - `MYSQL_HOSTNAME`
+  - `MYSQL_USERNAME`
+  - `MYSQL_PASSWORD`
+  - `MYSQL_DBNAME`
+
+  This module requires the following third-party software:
+
+  - `MySQL Server` or `MariaDB Server`
+
 #### TODO
 - [x] ~~Minimize the user activity on internals.~~
 - [ ] Improve performance (implement _AsyncTeleBot_).
@@ -21,17 +46,24 @@ Oh, by the way, don't forget to define your Telegram API key! On whatever system
 Robbie (with exception of its dependencies) is licensed under the [GNU Affero General Public License v3.0](LICENSE).
 
 #### Dependencies
-This bot depends of several APIs, libraries and modules, their licensing may vary. The list provided below, specifies each direct dependency. Please note that some other dependencies might be involved of which their licensing be different too.
+This bot depends of several APIs, libraries and modules, their licensing may vary. The list provided below, specifies each direct dependency. Please note that some other dependencies might be involved of which their licensing may be different too.
 
 - [pyTelegramBotAPI](https://github.com/eternnoir/pyTelegramBotAPI) (_GNU GPL v2.0_) - Python Telegram bot API.
-  This API provides the core functionality.
+
+This API provides the core functionality.
+
 
 - [PyMySQL](https://github.com/PyMySQL/PyMySQL) (_MIT License_) - Pure Python MySQL Client.
-  This API provides support for SQL queries to a MySQL/MariaDB, it's required to read/write the list of messages (to allow purging) and to save the user's personal access tokens to log into the GitHub API.
+
+This API provides support for SQL queries to a MySQL/MariaDB, it's required to read/write the list of messages (to allow purging) and to save the user's personal access tokens to log into the GitHub API.
+
 
 - [PyGithub](https://github.com/PyGithub/PyGithub) (_GNU LGPL v3.0_) - Typed interactions with the GitHub API v3
-  This API provides support for GitHub searches and other general purpose interaction with their API.
+
+This API provides support for GitHub searches and other general purpose interaction with their API.
+
 
 - [DuckDuckGo2](https://github.com/FacuM/python-duckduckgo) ([_BSD-style license_](https://github.com/FacuM/python-duckduckgo/blob/master/LICENSE)) - A library for querying the DuckDuckGo API.
-  This API provides support for DuckDuckGo searches.
-  Please note that this is just a fork and quick port over the [original version](https://github.com/crazedpsyc/python-duckduckgo), just to make it compatible with Python 3.x.
+
+This API provides support for DuckDuckGo searches.
+Please note that this is just a fork and quick port over the [original version](https://github.com/crazedpsyc/python-duckduckgo), just to make it compatible with Python 3.x.
