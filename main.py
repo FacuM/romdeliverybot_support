@@ -85,7 +85,7 @@ def get_plaintext(html):
     return ret
 
 def main():
-    github_enabled = True
+    database_available = True
 
     print_important('Hello! My name is ' + bot_name + ' and I\'m not very smart.\n' +
                     '\n' +
@@ -102,8 +102,8 @@ def main():
             else:
                 if (db):
                     print('Missing ' + message + ', all GitHub-related modules will be disabled.')
-                    nonlocal github_enabled
-                    github_enabled = False
+                    nonlocal database_available
+                    database_available = False
                 else:
                     print('Missing ' + message + ', this could cause some issues.')
                 warn_sleep()
@@ -122,6 +122,8 @@ def main():
     mysql_dbname = get_environment(value='MYSQL_DBNAME', message='MySQL database name', db=True)
 
     mysql_table_tokens = bot_name_lower + '_tokens'
+
+    mysql_table_log = bot_name_lower + '_log'
 
     '''
         Declare the DB object as global, as we're gonna write to it at least
@@ -144,7 +146,7 @@ def main():
             print('Success connecting to the MySQL server!')
         except:
             print('Failed to connect to the MySQL server, all GitHub-related modules will be disabled.')
-            github_enabled = False
+            database_available = False
             warn_sleep()
     connect_mysql()
 
@@ -152,19 +154,39 @@ def main():
         try:
             cur = db.cursor()
             cur.execute('SHOW TABLES')
-            tables = cur.fetchall()[0]
+            result = cur.fetchall()
+            tables = []
+            for table in result:
+                tables.append(table[0])
             if (not (mysql_table_tokens in tables)):
                 # Try to create the table (if not existing).
                 print('Creating table "' + mysql_table_tokens + '"...')
                 cur = db.cursor()
-                cur.execute('CREATE TABLE IF NOT EXISTS `' + mysql_table_tokens + '` (chat_id int(11) NOT NULL,token varchar(40) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8')
-                # Set chat_id as primary key
-                cur.execute('ALTER TABLE ' + mysql_table_tokens + ' ADD PRIMARY KEY (chat_id)')
+                cur.execute('CREATE TABLE IF NOT EXISTS `' + mysql_table_tokens + '` (chat_id int(11) NOT NULL, token varchar(40) NOT NULL , PRIMARY KEY (`chat_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8')
+                cur.close()
+                db.commit()
+            if (not (mysql_table_log in tables)):
+                # Try to create the table (if not existing).
+                print('Creating table "' + mysql_table_log + '"...')
+                cur = db.cursor()
+                cur.execute('CREATE TABLE IF NOT EXISTS `' + mysql_table_log + '` ( `message_id` INT NOT NULL , `chat_id` INT NOT NULL , `timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP , PRIMARY KEY (`message_id`)) ENGINE = InnoDB')
                 cur.close()
                 db.commit()
         except:
             pass
     populate_database()
+
+    def log_message(message):
+        # If a database is available, log messages once received.
+        if (database_available):
+            try:
+                cur = db.cursor()
+                cur.execute('INSERT INTO ' + mysql_table_log + ' (chat_id, message_id) VALUES (%s, %s)', (message.chat.id, message.message_id))
+                cur.close()
+                db.commit()
+            except (pymysql.err.Error, AttributeError):
+                print_important('WARNING: Unable to track a message, the purge module might cause unwanted behavior!')
+        return message
 
     print('Parsing provided device list...') # LineageOS by default, customize.
     parser = HTMLParser()
@@ -205,14 +227,15 @@ def main():
 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
-        bot.reply_to(message, "Hey, what's up? To learn how to use me, type /help.")
+        log_message(bot.reply_to(message, "Hey, what's up? To learn how to use me, type /help."))
 
     @bot.message_handler(commands=['help'])
     def send_help(message):
-        bot.reply_to(message, "Using me is pretty simple, just type your query and I'll try to find it through my code!")
+        log_message(bot.reply_to(message, "Using me is pretty simple, just type your query and I'll try to find it through my code!"))
 
     @bot.message_handler(func=lambda i:True)
     def everything(message):
+        log_message(message)
         content = str(message.text).lower().replace('?', '').replace('¿', '')
         try:
             message_replied = message.reply_to_message.from_user.id
@@ -222,7 +245,7 @@ def main():
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
                 if ("twrp" in content):
-                    bot.reply_to(message, "For a basic introduction, check this [XDA thread](https://forum.xda-developers.com/showthread.php?t=1943625).", parse_mode='Markdown')
+                    log_message(bot.reply_to(message, "For a basic introduction, check this [XDA thread](https://forum.xda-developers.com/showthread.php?t=1943625).", parse_mode='Markdown'))
                 elif ("android" in content):
                     device_index = -1
                     if (len(build_guides) > 0):
@@ -233,11 +256,11 @@ def main():
                             except ValueError:
                                 pass
                     if (device_index > -1):
-                        bot.reply_to(message, "I found a guide for your device, get it here: [build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown')
+                        log_message(bot.reply_to(message, "I found a guide for your device, get it here: [build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown'))
                     else:
-                        bot.reply_to(message, "A great guide to follow about this topic is the one from LineageOS, you can [check it out here](" + device_list_server + ").\n\nYou can also ask me about your specific device's build guide!", parse_mode='Markdown')
+                        log_message(bot.reply_to(message, "A great guide to follow about this topic is the one from LineageOS, you can [check it out here](" + device_list_server + ").\n\nYou can also ask me about your specific device's build guide!", parse_mode='Markdown'))
                 else:
-                    bot.reply_to(message, general_error, parse_mode='Markdown')
+                    log_message(bot.reply_to(message, general_error, parse_mode='Markdown'))
 
             elif ( ('my' in content) and ('github' in content) and ('username is' in content) and ('password is' in content) ):
                 message_snapshot = message
@@ -245,7 +268,7 @@ def main():
                 try:
                     bot.delete_message(message.chat.id, message.message_id)
                 except:
-                    bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.')
+                    log_message(bot.reply_to(message, 'I couldn\'t remove the message with your credentials from this chat, please delete it manually.'))
 
                 try:
                     cur = db.cursor()
@@ -256,12 +279,12 @@ def main():
                     db.commit() # try to commit (if possible)
 
                     if (token_count > 0):
-                        bot.send_message(message_snapshot.chat.id, "I know your token, please type in your search or revoke it.")
+                        log_message(bot.send_message(message_snapshot.chat.id, "I know your token, please type in your search or revoke it."))
                     else:
                         if (group_call):
-                            bot.send_message(message_snapshot.chat.id, 'Sorry, but you\'ll need to send me a private message to use that feature, it wouldn\'t be safe here.')
+                            log_message(bot.send_message(message_snapshot.chat.id, 'Sorry, but you\'ll need to send me a private message to use that feature, it wouldn\'t be safe here.'))
                         else:
-                            bot.send_message(message_snapshot.chat.id, "Fine, let me see if it works...")
+                            log_message(bot.send_message(message_snapshot.chat.id, "Fine, let me see if it works..."))
 
                             try:
                                 # Parse username.
@@ -297,28 +320,26 @@ def main():
                                     cur.execute("INSERT INTO " + mysql_table_tokens + " (chat_id, token) VALUES (%s, %s)", (message_snapshot.from_user.id, token,))
                                     cur.close()
                                     db.commit() # try to commit (if possible)
-                                    bot.send_message(message_snapshot.chat.id, "Welcome " + u.name + "! Please type in your search.")
+                                    log_message(bot.send_message(message_snapshot.chat.id, "Welcome " + u.name + "! Please type in your search."))
                                 else:
-                                    bot.send_message(message_snapshot.chat.id, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown')
+                                    log_message(bot.send_message(message_snapshot.chat.id, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown'))
                             except:
-                                bot.send_message(message_snapshot.chat.id, "Sorry, those credentails aren't valid.")
+                                log_message(bot.send_message(message_snapshot.chat.id, "Sorry, those credentails aren't valid."))
 
                 except pymysql.err.Error:
-                    bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
             elif ( ("github" in content) and ( not( 'duck' in content) or ('duckduckgo' in content) ) ):
-                if (not github_enabled):
-                    bot.reply_to(message, 'Sorry, but this module is disabled.')
-                else:
+                if (database_available):
                     if (" search" in content):
                         try:
                             if ("user" in content):
-                                bot.reply_to(message, "Oops... that's not implemented.")
+                                log_message(bot.reply_to(message, "Oops... that's not implemented."))
                             else:
                                 # If after wiping out the request, the query is empty, report it and quit.
                                 query = content.replace('github', '', 1).replace('hey', '').split("search")[1]
                                 if (len(query) < 1):
-                                    bot.reply_to(message, "Eh... I guess you should search something.")
+                                    log_message(bot.reply_to(message, "Eh... I guess you should search something."))
                                 else:
                                     cur = db.cursor()
                                     cur.execute("SELECT (SELECT COUNT(chat_id) FROM " + mysql_table_tokens + ' WHERE chat_id = %s), (SELECT token FROM ' + mysql_table_tokens + ' WHERE chat_id = %s)', (message.from_user.id, message.from_user.id,))
@@ -329,11 +350,11 @@ def main():
                                     cur.close()
 
                                     if (token_count < 1):
-                                        bot.reply_to(message, 'Sorry, I don\'t know you. Please tell me both your GitHub username and password.', parse_mode='Markdown')
+                                        log_message(bot.reply_to(message, 'Sorry, I don\'t know you. Please tell me both your GitHub username and password.', parse_mode='Markdown'))
                                     else:
                                         out_messages = []
 
-                                        loading_message = bot.send_message(message.chat.id, 'Please wait...')
+                                        loading_message = log_message(bot.send_message(message.chat.id, 'Please wait...'))
                                         bot.send_chat_action(message.chat.id, 'typing')
 
                                         g = Github(token)
@@ -405,20 +426,23 @@ def main():
 
                                         # Now, push the queued messages.
                                         for msg in out_messages:
-                                            bot.send_message(message.chat.id, msg, parse_mode='Markdown')
+                                            log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
                         except pymysql.err.Error:
-                            bot.reply_to(message, critical_error, parse_mode='Markdown')
+                            log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                             connect_mysql(retrying=True)
+                else:
+                    log_message(bot.reply_to(message, 'Sorry, but this module is disabled.'))
+
             elif ( ( ('duckduckgo' in content) or ('duck' in content) ) and ('search' in content) ):
                 # If after wiping out the request, the query is empty, report it and quit.
                 query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('hey', '').split("search")[1]
 
                 if (len(query) < 1):
-                    bot.reply_to(message, "Eh... I guess you should search something.")
+                    log_message(bot.reply_to(message, "Eh... I guess you should search something."))
                 else:
                     out_messages = []
 
-                    loading_message = bot.send_message(message.chat.id, 'Please wait...')
+                    loading_message = log_message(bot.send_message(message.chat.id, 'Please wait...'))
                     bot.send_chat_action(message.chat.id, 'typing')
 
                     request = duckduckgo.query(query, safesearch=True, html=False)
@@ -460,11 +484,11 @@ def main():
                             pass
 
                     except:
-                        bot.reply_to(message, 'Sorry, something went wrong.')
+                        log_message(bot.reply_to(message, 'Sorry, something went wrong.'))
 
                     # Now, push the queued messages.
                     for msg in out_messages:
-                        bot.send_message(message.chat.id, msg, parse_mode='Markdown')
+                        log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
 
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
                 try:
@@ -481,11 +505,11 @@ def main():
 
                         cur.close()
 
-                        bot.reply_to(message, 'Your token is `' + token + '`.', parse_mode='Markdown')
+                        log_message(bot.reply_to(message, 'Your token is `' + token + '`.', parse_mode='Markdown'))
                     else:
-                        bot.reply_to(message, 'I don\'t know who you are.')
+                        log_message(bot.reply_to(message, 'I don\'t know who you are.'))
                 except pymysql.err.Error:
-                    bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
 
             elif ( ('delete' in content) and ( ('token' in content) or ('account' in content) ) ):
@@ -503,62 +527,76 @@ def main():
                             cur.close()
                             db.commit()
 
-                            bot.reply_to(message, 'Eh... okay. :(\n\nI\'m deleting your account from my database, it makes me sad though.')
+                            log_message(bot.reply_to(message, 'Eh... okay. :(\n\nI\'m deleting your account from my database, it makes me sad though.'))
                         except:
-                            bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).')
+                            log_message(bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).'))
                     else:
-                        bot.reply_to(message, 'I don\'t know you.')
+                        log_message(bot.reply_to(message, 'I don\'t know you.'))
                 except pymysql.err.Error:
-                    bot.reply_to(message, critical_error, parse_mode='Markdown')
+                    log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
 
-                '''
-                ######################
-                TODO: Implement this.
-                ######################
+            elif ('purge' in content):
+                if (database_available):
+                    if ( (bot.get_chat_member(message.chat.id, message.from_user.id).can_delete_messages) or (not group_call) ):
+                        # If after wiping out the request, the query is empty, report it and quit.
+                        query = content.replace('purge', '', 1).replace('hey', '')[content.index('purge'):].split('purge')[0]
 
-                elif ('purge' in content):
-                    # If after wiping out the request, the query is empty, report it and quit.
-                    query = content.replace('purge', '', 1).replace('hey', '').replace(' ', '').split("purge")[0]
-                    print(query)
+                        if (len(query) < 1):
+                            log_message(bot.reply_to(message, "Eh... I guess you should provide an amount."))
+                        else:
+                            try:
+                                max_delete = int(query)
 
-                    if (len(query) < 1):
-                        bot.reply_to(message, "Eh... I guess you should provide an amount.")
+                                try:
+                                    # Fetch matching messages.
+                                    cur = db.cursor()
+                                    cur.execute('SELECT message_id FROM ' + mysql_table_log + ' WHERE chat_id = {chat_id} ORDER BY timestamp DESC LIMIT {limit}'.format(chat_id=message.chat.id, limit=max_delete))
+
+                                    # Delete them.
+                                    for message_id in cur.fetchall():
+                                        try:
+                                            bot.delete_message(message.chat.id, message_id)
+                                            # Take them off the database.
+                                            cur.execute('DELETE FROM ' + mysql_table_log + ' WHERE chat_id = {chat_id} ORDER BY timestamp DESC LIMIT {limit}'.format(chat_id=message.chat.id, limit=max_delete))
+                                        except:
+                                            log_message(bot.reply_to(message, 'Sorry, but I\'m not an administrator.'))
+                                            pass
+                                            break
+
+                                    cur.close()
+                                    db.commit()
+
+                                except pymysql.err.Error:
+                                    log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
+                                    connect_mysql(retrying=True)
+                            except ValueError:
+                                log_message(bot.send_message(message.chat.id, 'That\'s not a number.'))
                     else:
-                        try:
-                            max_delete = int(query)
-                            cnt = 0
-                            for update in bot.updates:
-                                if (cnt < max_delete):
-                                    bot.delete_message(message.chat.id, update.id)
-                                    cnt += 1
-                                else:
-                                    break
-                            bot.send_message(message.chat.id, 'Alright, it\'s done! Anything else?')
-                        except:
-                            bot.send_message(message.chat.id, 'That\'s not a number.')
-                '''
+                        log_message(bot.reply_to(message, 'Sorry, but you aren\'t allowed to use this module.'))
+                else:
+                    log_message(bot.reply_to(message, 'Sorry, but this module is disabled.'))
 
             # Conversational basics (because who needs AIs).
             elif ( ('no' in content) or ('thank' in content) or ('thx' in content) or ('ty' in content) or ('bye' in content) or ('cya' in content) or ('c ya' in content) or ( ('see' in content) and ('you' in content) ) ):
-                bot.reply_to(message, 'Hope to see you soon!')
+                log_message(bot.reply_to(message, 'Hope to see you soon!'))
             # => Greetings / welcome.
             elif ( ('hi' in content) or ('hello' in content) or ('hey' in content) ):
-                bot.reply_to(message, 'Hello, is everything alright?')
+                log_message(bot.reply_to(message, 'Hello, is everything alright?'))
             # => Auxiliary social words and slangs.
             elif ( ('what' in content) and ('s' in content) and ('goin' in content) or ('up' in content) or ('how' in content) and ( ('do' in content) or ('in' in content) ) ):
-                bot.reply_to(message, 'I\'m fine, what can I do for you, is everything alright?')
+                log_message(bot.reply_to(message, 'I\'m fine, what can I do for you, is everything alright?'))
             # => Help request: I've got a problem! (low + urgent)
             elif ( ('i' in content) and ('problem' in content) ):
-                bot.reply_to(message, 'Please explain your issue and I\'ll try to help.')
+                log_message(bot.reply_to(message, 'Please explain your issue and I\'ll try to help.'))
             elif ( ('what' in content) and ('s' in content) and ('name' in content) ):
-                bot.reply_to(message, 'My name is ' + bot_name + '.')
+                log_message(bot.reply_to(message, 'My name is ' + bot_name + '.'))
             # => Fallback: I don't know what to do!
             else:
                 if (group_call):
-                    bot.reply_to(message, 'I don\'t know what to do.')
+                    log_message(bot.reply_to(message, 'I don\'t know what to do.'))
                 else:
-                    bot.reply_to(message, general_error, parse_mode='Markdown')
+                    log_message(bot.reply_to(message, general_error, parse_mode='Markdown'))
 
     print('The bot is now polling...')
     bot.polling()
