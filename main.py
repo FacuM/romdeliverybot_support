@@ -538,7 +538,8 @@ def main():
 
             elif ('purge' in content):
                 if (database_available):
-                    if ( (bot.get_chat_member(message.chat.id, message.from_user.id).can_delete_messages) or (not group_call) ):
+                    member_type = bot.get_chat_member(message.chat.id, message.from_user.id).status
+                    if ( ( (member_type == 'creator') or (member_type == 'administrator') ) or (not group_call) ):
                         # If after wiping out the request, the query is empty, report it and quit.
                         query = content.replace('purge', '', 1).replace('hey', '')[content.index('purge'):].split('purge')[0]
 
