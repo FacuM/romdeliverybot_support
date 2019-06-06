@@ -622,9 +622,6 @@ def main():
                                             cur.execute('DELETE FROM ' + mysql_table_log + ' WHERE chat_id = {chat_id} ORDER BY timestamp DESC LIMIT {limit}'.format(chat_id=message.chat.id, limit=max_delete))
                                             status = True
                                         except:
-                                            if (group_call):
-                                                log_message(bot.reply_to(message, 'Sorry, but I\'m not an administrator.'))
-                                                break
                                             pass
                                         log_operation(operation='DELETE_MESSAGE(' + str(cnt) + '/' + row_count + ')', message_id=message_id[0], chat_id=message.chat.id, status=status)
                                         cnt += 1
