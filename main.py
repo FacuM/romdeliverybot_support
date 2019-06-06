@@ -459,7 +459,10 @@ def main():
 
                                         # Now, push the queued messages.
                                         for msg in out_messages:
-                                            log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
+                                            try:
+                                                log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
+                                            except:
+                                                pass
                         except pymysql.err.Error as e:
                             log_operation('CRITICAL_ERROR', message, status=True)
                             print(e)
