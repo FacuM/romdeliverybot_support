@@ -138,7 +138,10 @@ def main():
             if (retrying):
                 # Retry DB connection.
                 print('Retrying to connect to the MySQL server...')
-                db.close()
+                try:
+                    db.close()
+                except:
+                    pass
             else:
                 # Test DB connection.
                 print('Connecting to the MySQL server...')
@@ -184,8 +187,11 @@ def main():
                 cur.execute('INSERT INTO ' + mysql_table_log + ' (chat_id, message_id) VALUES (%s, %s)', (message.chat.id, message.message_id))
                 cur.close()
                 db.commit()
-            except (pymysql.err.Error, AttributeError):
-                print_important('WARNING: Unable to track a message, the purge module might cause unwanted behavior!')
+                print('TRACKED: message_id=' + str(message.message_id) + ', chat_id=' + str(message.chat.id))
+            except (pymysql.err.Error, AttributeError) as e:
+                print('UNTRACKED: message_id=' + str(message.message_id) + ', chat_id=' + str(message.chat.id))
+                print(str(e))
+                connect_mysql(retrying=True)
         return message
 
     print('Parsing provided device list...') # LineageOS by default, customize.
@@ -326,7 +332,8 @@ def main():
                             except:
                                 log_message(bot.send_message(message_snapshot.chat.id, "Sorry, those credentails aren't valid."))
 
-                except pymysql.err.Error:
+                except pymysql.err.Error as e:
+                    print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
             elif ( ("github" in content) and ( not( 'duck' in content) or ('duckduckgo' in content) ) ):
@@ -427,7 +434,8 @@ def main():
                                         # Now, push the queued messages.
                                         for msg in out_messages:
                                             log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
-                        except pymysql.err.Error:
+                        except pymysql.err.Error as e:
+                            print(e)
                             log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                             connect_mysql(retrying=True)
                 else:
@@ -508,7 +516,8 @@ def main():
                         log_message(bot.reply_to(message, 'Your token is `' + token + '`.', parse_mode='Markdown'))
                     else:
                         log_message(bot.reply_to(message, 'I don\'t know who you are.'))
-                except pymysql.err.Error:
+                except pymysql.err.Error as e:
+                    print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
 
@@ -532,7 +541,8 @@ def main():
                             log_message(bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).'))
                     else:
                         log_message(bot.reply_to(message, 'I don\'t know you.'))
-                except pymysql.err.Error:
+                except pymysql.err.Error as e:
+                    print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
 
@@ -568,7 +578,8 @@ def main():
                                     cur.close()
                                     db.commit()
 
-                                except pymysql.err.Error:
+                                except pymysql.err.Error as e:
+                                    print(e)
                                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                                     connect_mysql(retrying=True)
                             except ValueError:
