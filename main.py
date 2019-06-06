@@ -573,7 +573,7 @@ def main():
                                         except:
                                             log_message(bot.reply_to(message, 'Sorry, but I\'m not an administrator.'))
                                             pass
-                                            break
+                                        break
 
                                     cur.close()
                                     db.commit()
