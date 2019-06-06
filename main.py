@@ -179,6 +179,15 @@ def main():
             pass
     populate_database()
 
+    def log_operation(operation, message=None, message_id=None, chat_id=None, status=False):
+        log = operation.upper() + ': message_id=' + str(message_id) + ', chat_id=' + str(chat_id) + ', status='
+        if ((message_id is None) or (chat_id is None)):
+            log = operation.upper() + ': message_id=' + str(message.message_id) + ', chat_id=' + str(message.chat.id) + ', status='
+        else:
+            log = operation.upper() + ': message_id=' + str(message_id) + ', chat_id=' + str(chat_id) + ', status='
+        log += str(status)
+        print(log)
+
     def log_message(message):
         # If a database is available, log messages once received.
         if (database_available):
@@ -187,9 +196,9 @@ def main():
                 cur.execute('INSERT INTO ' + mysql_table_log + ' (chat_id, message_id) VALUES (%s, %s)', (message.chat.id, message.message_id))
                 cur.close()
                 db.commit()
-                print('TRACKED: message_id=' + str(message.message_id) + ', chat_id=' + str(message.chat.id))
+                log_operation(operation='TRACK_MESSAGE', message=message, status=True)
             except (pymysql.err.Error, AttributeError) as e:
-                print('UNTRACKED: message_id=' + str(message.message_id) + ', chat_id=' + str(message.chat.id))
+                log_operation(operation='TRACK_MESSAGE', message=message, status=False)
                 print(str(e))
                 connect_mysql(retrying=True)
         return message
@@ -250,6 +259,7 @@ def main():
         group_call = ( (message.chat.type == 'group' or message.chat.type == 'supergroup') and ( (bot_name_lower in content) or (message_replied == bot_user_id) ) )
         if ( (message.chat.type == 'private') or (group_call) ):
             if ("build" in content):
+                log_operation(operation='GUIDE_REQUEST_BEGIN', message=message, status=True)
                 if ("twrp" in content):
                     log_message(bot.reply_to(message, "For a basic introduction, check this [XDA thread](https://forum.xda-developers.com/showthread.php?t=1943625).", parse_mode='Markdown'))
                 elif ("android" in content):
@@ -265,10 +275,15 @@ def main():
                         log_message(bot.reply_to(message, "I found a guide for your device, get it here: [build guide for " + build_guides[device_index] + "](" +  build_guides_server + device_list_part_a + build_guides[device_index] + device_list_part_b + ").", parse_mode='Markdown'))
                     else:
                         log_message(bot.reply_to(message, "A great guide to follow about this topic is the one from LineageOS, you can [check it out here](" + device_list_server + ").\n\nYou can also ask me about your specific device's build guide!", parse_mode='Markdown'))
+
+                    log_operation(operation='GUIDE_REQUEST', message=message, status=True)
                 else:
+                    log_operation(operation='GUIDE_REQUEST', message=message, status=False)
                     log_message(bot.reply_to(message, general_error, parse_mode='Markdown'))
+                log_operation(operation='GUIDE_REQUEST_END', message=message, status=True)
 
             elif ( ('my' in content) and ('github' in content) and ('username is' in content) and ('password is' in content) ):
+                log_operation('GITHUB_LOGIN_BEGIN', message, status=True)
                 message_snapshot = message
 
                 try:
@@ -327,17 +342,26 @@ def main():
                                     cur.close()
                                     db.commit() # try to commit (if possible)
                                     log_message(bot.send_message(message_snapshot.chat.id, "Welcome " + u.name + "! Please type in your search."))
+                                    log_operation('GITHUB_LOGIN', message, status=True)
                                 else:
+                                    log_operation('GITHUB_LOGIN', message, status=False)
                                     log_message(bot.send_message(message_snapshot.chat.id, 'Sorry, I couldn\'t get a token, please delete "' + bot_name + '" manually from your [personal access tokens](https://github.com/settings/tokens).', parse_mode='Markdown'))
                             except:
+                                log_operation('GITHUB_LOGIN', message, status=False)
                                 log_message(bot.send_message(message_snapshot.chat.id, "Sorry, those credentails aren't valid."))
 
+
                 except pymysql.err.Error as e:
+                    log_operation('CRITICAL_ERROR', message, status=True)
                     print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
+
+                log_operation('GITHUB_LOGIN_END', message, status=True)
+
             elif ( ("github" in content) and ( not( 'duck' in content) or ('duckduckgo' in content) ) ):
                 if (database_available):
+                    log_operation('GITHUB_SEARCH_BEGIN', message, status=True)
                     if (" search" in content):
                         try:
                             if ("user" in content):
@@ -421,8 +445,10 @@ def main():
                                                 out_messages.append('Oops... no results.')
                                             else:
                                                 out_messages.append('And... that\'s it! Anything else?')
+                                            log_operation('GITHUB_SEARCH', message, status=True)
                                         except:
                                             out_messages.append("Sorry, I couldn\'t process your query.")
+                                            log_operation('GITHUB_SEARCH', message, status=False)
 
                                         # If we're done loading (or failing), delete the loading message.
                                         try:
@@ -435,13 +461,16 @@ def main():
                                         for msg in out_messages:
                                             log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
                         except pymysql.err.Error as e:
+                            log_operation('CRITICAL_ERROR', message, status=True)
                             print(e)
                             log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                             connect_mysql(retrying=True)
                 else:
                     log_message(bot.reply_to(message, 'Sorry, but this module is disabled.'))
+                log_operation('GITHUB_SEARCH_END', message, status=True)
 
             elif ( ( ('duckduckgo' in content) or ('duck' in content) ) and ('search' in content) ):
+                log_operation('DUCK_SEARCH_BEGIN', message, status=True)
                 # If after wiping out the request, the query is empty, report it and quit.
                 query = content.replace('duckduckgo', '', 1).replace('duck', '', 1).replace('hey', '').split("search")[1]
 
@@ -483,6 +512,7 @@ def main():
                             out_messages.append('And... that\'s it! Anything else?')
                         else:
                             out_messages.append('Oops... no results.')
+                        log_operation('DUCK_SEARCH', message, status=True)
 
                         # If we're done loading (or failing), delete the loading message.
                         try:
@@ -492,13 +522,17 @@ def main():
                             pass
 
                     except:
+                        log_operation('DUCK_SEARCH', message, status=True)
                         log_message(bot.reply_to(message, 'Sorry, something went wrong.'))
 
                     # Now, push the queued messages.
                     for msg in out_messages:
                         log_message(bot.send_message(message.chat.id, msg, parse_mode='Markdown'))
 
+                    log_operation('DUCK_SEARCH_END', message, status=True)
+
             elif ( ( ('what' in content) or ('do' in content) ) and ('token' in content) ):
+                log_operation('TOKEN_REQUEST_BEGIN', message, status=True)
                 try:
                     cur = db.cursor()
                     cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
@@ -517,11 +551,14 @@ def main():
                     else:
                         log_message(bot.reply_to(message, 'I don\'t know who you are.'))
                 except pymysql.err.Error as e:
+                    log_operation('CRITICAL_ERROR', message, status=True)
                     print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
+                log_operation('TOKEN_REQUEST_END', message, status=True)
 
             elif ( ('delete' in content) and ( ('token' in content) or ('account' in content) ) ):
+                log_operation('DELETE_ACCOUNT_BEGIN', message, status=True)
                 try:
                     cur = db.cursor()
                     cur.execute('SELECT COUNT(chat_id) FROM ' + mysql_table_tokens + ' WHERE chat_id = %s', (message.from_user.id,))
@@ -537,17 +574,23 @@ def main():
                             db.commit()
 
                             log_message(bot.reply_to(message, 'Eh... okay. :(\n\nI\'m deleting your account from my database, it makes me sad though.'))
+                            log_operation(operation='DELETE_ACCOUNT', message=message, status=True)
                         except:
                             log_message(bot.reply_to(message, 'Sorry, I couldn\'t delete your account. You might want to [create an issue](' + repo_url + '/issues/new).'))
+                            log_operation(operation='DELETE_ACCOUNT', message=message, status=False)
                     else:
                         log_message(bot.reply_to(message, 'I don\'t know you.'))
+                        log_operation(operation='DELETE_ACCOUNT_NA', message=message, status=True)
                 except pymysql.err.Error as e:
+                    log_operation('CRITICAL_ERROR', message, status=True)
                     print(e)
                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                     connect_mysql(retrying=True)
+                log_operation('DELETE_ACCOUNT_END', message, status=True)
 
             elif ('purge' in content):
                 if (database_available):
+                    log_operation(operation='DELETE_REQUEST_BEGIN', message=message, status=True)
                     member_type = bot.get_chat_member(message.chat.id, message.from_user.id).status
                     if ( ( (member_type == 'creator') or (member_type == 'administrator') ) or (not group_call) ):
                         # If after wiping out the request, the query is empty, report it and quit.
@@ -564,21 +607,33 @@ def main():
                                     cur = db.cursor()
                                     cur.execute('SELECT message_id FROM ' + mysql_table_log + ' WHERE chat_id = {chat_id} ORDER BY timestamp DESC LIMIT {limit}'.format(chat_id=message.chat.id, limit=max_delete))
 
+                                    # Initialize auxiliary variables and report operation.
+                                    cnt = 1
+                                    row_count = str(cur.rowcount)
+                                    log_operation(operation='DELETE_REQUEST(' + str(max_delete) + '/' + row_count + ')', message=message, status=True)
+
                                     # Delete them.
+
                                     for message_id in cur.fetchall():
+                                        status = False
                                         try:
                                             bot.delete_message(message.chat.id, message_id)
                                             # Take them off the database.
                                             cur.execute('DELETE FROM ' + mysql_table_log + ' WHERE chat_id = {chat_id} ORDER BY timestamp DESC LIMIT {limit}'.format(chat_id=message.chat.id, limit=max_delete))
+                                            status = True
                                         except:
-                                            log_message(bot.reply_to(message, 'Sorry, but I\'m not an administrator.'))
+                                            if (group_call):
+                                                log_message(bot.reply_to(message, 'Sorry, but I\'m not an administrator.'))
+                                                break
                                             pass
-                                        break
+                                        log_operation(operation='DELETE_MESSAGE(' + str(cnt) + '/' + row_count + ')', message_id=message_id[0], chat_id=message.chat.id, status=status)
+                                        cnt += 1
 
                                     cur.close()
                                     db.commit()
 
                                 except pymysql.err.Error as e:
+                                    log_operation('CRITICAL_ERROR', message, status=True)
                                     print(e)
                                     log_message(bot.reply_to(message, critical_error, parse_mode='Markdown'))
                                     connect_mysql(retrying=True)
@@ -586,6 +641,8 @@ def main():
                                 log_message(bot.send_message(message.chat.id, 'That\'s not a number.'))
                     else:
                         log_message(bot.reply_to(message, 'Sorry, but you aren\'t allowed to use this module.'))
+
+                    log_operation(operation='DELETE_REQUEST_END', message=message, status=True)
                 else:
                     log_message(bot.reply_to(message, 'Sorry, but this module is disabled.'))
 
