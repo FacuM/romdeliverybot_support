@@ -1,4 +1,5 @@
 pyTelegramBotAPI
 PyGithub
 PyMySQL
+mistune
 -e git://github.com/FacuM/python-duckduckgo.git#egg=duckduckgo2
